@@ -5,14 +5,14 @@ import sys
 import xml.dom.minidom
 from xml.dom.minidom import Node
  
-abbrMap={	"Generation":			["Gen","and"]
-		, 	"Variant":				["Var","and or"]
-		, 	"Revision":				["",""]
-		, 	"E_Param":				["",""]
-		, 	"Official_support":		["",""]
-		}
+abbrMap={	        
+			"Generation":		["Gen","and"]
+		, 	"Variant":		["Var","and or"]
+		, 	"Revision":		["",""]
+		, 	"E_Param":		["",""]
+		, 	"Official_support":	["",""]
+	}
 		
-
 variantsMap={}
 
 cur_variant=0
@@ -25,32 +25,35 @@ INITIAL_VALUE_FOR_UNSUPPORTED_REVISION=100
 
 class Variant:
 
-	def __init__(self, name, last_supported_revision, first_unsupported_revision, list_of_revisions):
-		self.name 						= name		
+	def __init__(self
+	, name
+	, last_supported_revision
+	, first_unsupported_revision
+	, list_of_revisions
+	):
+		self.name 			= name		
 		self.last_supported_revision 	= last_supported_revision
 		self.first_unsupported_revision = first_unsupported_revision
-		self.list_of_revisions 			= list_of_revisions	
+		self.list_of_revisions 		= list_of_revisions	
 
 def prepare_expression(list, expression):	
-		
-	#if is_there_an_error_in_a_string(expression):	#checks if expression contains word "ERROR"
-	#	return expression							#if it does, then break the recursion
 		
 	for node in list.childNodes:
 		if (node.nodeType != 3): # if not a TEXT_NODE; reason: we have "\n" characters in the xml file
 			
 			if (node.nodeName == "E_Param"):
-				continue
+			        continue
 				
-			if (node.nodeName == "Variant"):
+			if(node.nodeName == "Variant"):
 				set_current_variant(node.attributes["hex"].nodeValue, node.attributes["name"].nodeValue)				
 			
-			if (node.nodeName == "Revision"):
+			if(node.nodeName == "Revision"):
 				set_current_revision(node.attributes["hex"].nodeValue)
 				#check if there all needed nodes (E_Param, Official_support)				
 				if (len(node.childNodes) < EXPECTED_NUMBER_OF_CHILDNODES):	
 					return "ERROR: Not all mandatory tags are added ["\
-					+variantsMap[cur_variant].name+"::revision "+node.attributes["hex"].nodeValue+"]!"
+					+variantsMap[cur_variant].name+\
+					"::revision "+node.attributes["hex"].nodeValue+"]!"
 			
 			if(node.nodeName == "Official_support"):
 				set_latest_supported_revision(node.attributes["value"].nodeValue)
@@ -62,22 +65,26 @@ def prepare_expression(list, expression):
 			expression=prepare_expression(node, expression)		#rolling into the deep
 
 			if is_there_an_error_in_a_string(expression):		#checks if expression contains word "ERROR"
-					return expression							#if it does, then break the recursion			
+					return expression			#if it does, then break the recursion			
 		
-			#after returning from recursion [Official_support,Revision] and variants (which not contain supported revisions)
+			#after returning from recursion [Official_support,Revision] 
+			#and variants (which do not contain supported revisions)
 			#should be ignored
 			
 			if	(node.nodeName == "Official_support") or\
 				(node.nodeName == "Revision") or\
-				(	(node.nodeName == "Variant") and\
-					(variantsMap[int(node.attributes["hex"].nodeValue,16)].last_supported_revision ==\
-					INITIAL_VALUE_FOR_REVISION)):				
+				((node.nodeName == "Variant") and\
+				 (variantsMap[int(node.attributes["hex"].nodeValue,16)].last_supported_revision ==\
+				 INITIAL_VALUE_FOR_REVISION)):				
 				continue
 				
-			if (node.nodeName == "Generation"):
+			if (node.nodeName == "Generation"): #add terminator to RPN
 				expression="0 "+expression
 						
+			#add name and value to RPN
 			expression=expression+abbrMap[node.nodeName][0]+" "+node.attributes["hex"].nodeValue+" eq "
+			
+			#add latest supported revision for variant
 			if (node.nodeName == "Variant"):				
 				variantsMap[int(node.attributes["hex"].nodeValue,16)].list_of_revisions.sort()	
 				expression=expression+\
